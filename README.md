@@ -40,6 +40,26 @@ positions taken from real games.
 - Promotion choice, board flip, **Daily Challenge** (the same puzzle for
   everyone today) and auto-save of the puzzle in progress.
 
+## Multiplayer
+
+**Chess Puzzles · multiplayer** (Tools → Games → Party & quiz, or *Mode:
+Multiplayer* in the menu): 2 to 8 players — or teams (*Play as: Teams*) —
+solve puzzles on one board laid on the table.
+
+- Each puzzle has a clock (1, 2, 3 or 5 minutes, or no limit). Whoever has
+  it taps **I have it!** (or the board), picks their name in **Who has it?**
+  and plays the moves. The clock stops during an attempt.
+- **Points**: Beginner 1, Easy 2, Medium 3, Hard 4, Expert 5, plus 1 for each
+  move to find beyond the first; each hint (shared, between attempts) takes 1
+  off, never below 1.
+- A **wrong move** puts that player out for this puzzle: the position goes
+  back to the start and the others may try. Everyone out, time up or *Show
+  solution*: nobody scores, and the solution can be stepped through.
+- A match is 3, 5 or 10 puzzles from the chosen difficulty; scores after
+  each, the best total wins (ties possible).
+- Multiplayer never changes your solo rating, statistics or seen puzzles.
+  The match in progress is saved apart from the solo puzzle.
+
 ## Controls
 
 | Action | How |
