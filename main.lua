@@ -19,6 +19,7 @@ local ChessPuzzles = PluginBase:extend{
     name      = "chesspuzzles",
     menu_text = _("Chess Puzzles"),
     menu_hint = "tools",
+    party_mode = true,
 }
 
 function ChessPuzzles:createScreen()

@@ -8,11 +8,13 @@ local function lrequire(name)
 end
 
 local ButtonDialog    = require("ui/widget/buttondialog")
+local Font            = require("ui/font")
 local FrameContainer  = require("ui/widget/container/framecontainer")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan  = require("ui/widget/horizontalspan")
 local InfoMessage     = require("ui/widget/infomessage")
 local Size            = require("ui/size")
+local TextBoxWidget   = require("ui/widget/textboxwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
@@ -22,10 +24,12 @@ local T               = require("ffi/util").template
 local ScreenBase  = require("screen_base")
 local DailySeed   = require("daily_seed")
 local MenuHelper  = require("menu_helper")
+local Party       = require("party")
 local BoardWidget = lrequire("board_widget")
 local Game        = lrequire("game")
 local Puzzles     = lrequire("puzzles")
 local Rating      = lrequire("rating")
+local PartyMatch  = lrequire("party_match")
 
 local GAME_RULES_EN = [[
 Chess Puzzles — Rules
@@ -63,6 +67,69 @@ Difficulté : Adaptatif choisit des problèmes proches de votre classement ; Dé
 Problèmes issus de la base de problèmes de Lichess (lichess.org), domaine public CC0 : 10 000 problèmes bien établis, classés par les joueurs de Lichess.
 ]]
 
+local GAME_RULES_PARTY_EN = [[
+Chess Puzzles · multiplayer — Rules
+
+For 2 to 8 players, or teams, around one reader laid on the table. Everyone looks at the same puzzle; the fastest correct solver scores.
+
+Setup (title-bar menu)
+• Players: how many; Player names: type each name (remembered). Play as: Teams to play in teams instead (Teams, Team names — remembered apart).
+• Difficulty: every puzzle of the match comes from this band — Beginner (under 1000), Easy (1000–1399), Medium (1400–1799), Hard (1800–2199), Expert (2200+).
+• Puzzles: 3, 5 or 10 per match.
+• Time: 1, 2, 3 or 5 minutes per puzzle, or No limit.
+
+A puzzle
+• The board is shown after the opponent's move (highlighted); the side to move is in the status line. The clock starts.
+• Whoever thinks they have it taps "I have it!" (or taps the board) and picks their name in "Who has it?". The clock stops while they play.
+• They play the moves on the board: tap a piece, then its square. The opponent answers each right move; any checkmate counts.
+• The whole solution right wins the puzzle's points. One wrong move and that player is out for this puzzle: the position goes back to the start, the clock runs again and the others may try.
+• Hint (between attempts, for everyone): first the piece to move, then its square. Each hint takes 1 point off the puzzle.
+• The puzzle ends when it is solved, when everyone is out, when the time is up or when Show solution is used — nobody scores then, and the solution can be stepped through. "Next puzzle" deals the next one.
+
+Scoring
+• Beginner 1, Easy 2, Medium 3, Hard 4, Expert 5 points, plus 1 for each move to find beyond the first (a Medium mate in 2 is worth 4). Each hint: −1, never below 1. The status line shows what the puzzle is worth now.
+
+End of the match
+• After the last puzzle the final scores are shown: the highest total wins. Equal totals are a tie.
+• "New game" starts a new match. Closing the reader keeps the match (an attempt in progress starts over).
+• Multiplayer puzzles never change your solo rating, statistics or seen puzzles.
+]]
+
+local GAME_RULES_PARTY_FR = [[
+Problèmes d'échecs · à plusieurs — Règles
+
+De 2 à 8 joueurs, ou des équipes, autour d'une seule liseuse posée sur la table. Tout le monde regarde le même problème ; le plus rapide à le résoudre marque.
+
+Préparation (menu de la barre de titre)
+• Joueurs : combien ; Noms des joueurs : tapez chaque nom (ils sont mémorisés). Vous jouez : Équipes pour jouer en équipes (Équipes, Noms des équipes — mémorisés à part).
+• Difficulté : tous les problèmes de la partie viennent de cette tranche — Débutant (moins de 1000), Facile (1000–1399), Moyen (1400–1799), Difficile (1800–2199), Expert (2200 et plus).
+• Problèmes : 3, 5 ou 10 par partie.
+• Durée : 1, 2, 3 ou 5 minutes par problème, ou Sans limite.
+
+Un problème
+• L'échiquier est montré après le coup de l'adversaire (en surbrillance) ; le camp au trait est dans la ligne d'état. Le chrono démarre.
+• Celui qui pense avoir trouvé touche « Je l'ai ! » (ou l'échiquier) et choisit son nom dans « Qui l'a ? ». Le chrono s'arrête pendant qu'il joue.
+• Il joue les coups sur l'échiquier : touchez une pièce, puis sa case. L'adversaire répond à chaque bon coup ; tout mat compte.
+• La solution complète rapporte les points du problème. Un seul mauvais coup et ce joueur est éliminé pour ce problème : la position revient au départ, le chrono repart et les autres peuvent essayer.
+• Astuce (entre deux essais, pour tous) : d'abord la pièce à jouer, puis sa case. Chaque astuce retire 1 point au problème.
+• Le problème se termine quand il est résolu, quand tout le monde est éliminé, quand le temps est écoulé ou avec Voir la solution — personne ne marque alors, et on peut parcourir la solution. « Problème suivant » donne le suivant.
+
+Points
+• Débutant 1, Facile 2, Moyen 3, Difficile 4, Expert 5 points, plus 1 par coup à trouver au-delà du premier (un mat en 2 Moyen vaut 4). Chaque astuce : −1, jamais moins de 1. La ligne d'état indique ce que vaut le problème.
+
+Fin de la partie
+• Après le dernier problème, les scores finaux s'affichent : le plus haut total gagne. À total égal, c'est une égalité.
+• « Nouvelle partie » relance une partie. Fermer la liseuse garde la partie (un essai en cours recommence).
+• Les problèmes à plusieurs ne changent jamais votre classement, vos statistiques ni les problèmes vus en solo.
+]]
+
+local MODE_RULES = {
+    solo  = { GAME_RULES_EN, GAME_RULES_FR },
+    party = { GAME_RULES_PARTY_EN, GAME_RULES_PARTY_FR },
+}
+
+local PARTY_KEY = "party_state"
+
 local BAND_LABELS = {
     adaptive = _("Adaptive"),
     beginner = _("Beginner"),
@@ -99,27 +166,44 @@ local REPLY_DELAY = 0.6
 local ChessPuzzlesScreen = ScreenBase:extend{}
 
 function ChessPuzzlesScreen:init()
-    self.game = Game:new()
     self.user_flip = false
+    self.party = self.plugin.launch_mode == "party"
+    if self.party then
+        self:_loadParty()
+    else
+        self:_loadSolo()
+    end
+    ScreenBase.init(self)
+    self:_startCountdown()
+end
+
+function ChessPuzzlesScreen:_loadSolo()
+    self.game = Game:new()
+    self.match = nil
     local saved = self.plugin:loadState()
     local p = type(saved) == "table" and Puzzles.isBand(saved.band)
         and Puzzles.get(saved.band, tonumber(saved.index) or 0)
     if not (p and self.game:load(saved, p)) then
         self:_newPuzzle()
     end
-    ScreenBase.init(self)
 end
 
+-- The solo save (setting "state"); a match keeps its own key, so the solo
+-- puzzle in progress is left as it was.
 function ChessPuzzlesScreen:serializeState()
+    if self.party then return self.plugin:loadState() end
     return self.game:serialize()
 end
 
 function ChessPuzzlesScreen:_save()
+    if self.party then return self:_saveParty() end
     self.plugin:saveState(self.game:serialize())
 end
 
 function ChessPuzzlesScreen:closeScreen()
     self:_cancelReply()
+    self:_stopCountdown()
+    if self.party then self:_saveParty() end
     ScreenBase.closeScreen(self)
 end
 
@@ -174,7 +258,8 @@ end
 -- Puzzles played before (replays, a daily already met) are not rated.
 function ChessPuzzlesScreen:_settle(win)
     local g = self.game
-    if g.rated then return end
+    -- A multiplayer puzzle never touches the solo rating or statistics.
+    if self.party or g.rated then return end
     g.rated = true
     if not g.ratable then return end
     local p = g.puzzle
@@ -238,6 +323,7 @@ function ChessPuzzlesScreen:_newPuzzle()
 end
 
 function ChessPuzzlesScreen:onNewGame()
+    if self.party then return self:onNewMatch() end
     local msg = self:_newPuzzle()
     self:buildLayout()
     if msg then self:updateStatus(msg) end
@@ -273,6 +359,7 @@ function ChessPuzzlesScreen:buildLayout()
     local is_landscape = self:isLandscape()
 
     local title_bar = self:buildTitleBar(_("Chess Puzzles"), function()
+        if self.party then return self:_partyMenuItems() end
         local items = {
             { text = _("New game"), callback = function() self:onNewGame() end },
             self:makeDailyButtonConfig(),
@@ -286,23 +373,37 @@ function ChessPuzzlesScreen:buildLayout()
         end
         items[#items + 1] = { text = _("Flip board"), callback = function() self:onFlipBoard() end }
         items[#items + 1] = { text = _("Statistics"), callback = function() self:showStatistics() end }
-        items[#items + 1] = self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR)
+        table.insert(items, 5, { text = self:_modeLabel(), callback = function() self:_setMode("party") end })
+        items[#items + 1] = self:makeModeRulesButtonConfig(MODE_RULES)
         return items
     end)
 
     self.status_text:setMaxWidth(self:getControlsWidth())
     local hint     = { text = _("Hint"),          callback = function() self:onHint() end }
     local solution = { text = _("Show solution"), callback = function() self:onShowSolution() end }
-    -- The landscape side panel is too narrow for both labels on one row.
-    local action_bar = self:buildActionBar(is_landscape
-        and { { hint }, { solution } }
-        or  { hint, solution })
+    local action_bar
+    if self.party then
+        local m = self.match
+        hint.enabled = m.player == nil
+        local claim = { text = _("I have it!"), enabled = m.player == nil,
+                        callback = function() self:_askWhoHasIt() end }
+        action_bar = self:buildActionBar(is_landscape
+            and { { claim }, { hint }, { solution } }
+            or  { claim, hint, solution })
+    else
+        -- The landscape side panel is too narrow for both labels on one row.
+        action_bar = self:buildActionBar(is_landscape
+            and { { hint }, { solution } }
+            or  { hint, solution })
+    end
     local controls = VerticalGroup:new{
         align = "center",
         self.status_text,
         VerticalSpan:new{ width = Size.span.vertical_large },
         action_bar,
     }
+    self.header_widget, self.header_frame, self.scores_widget = nil, nil, nil
+    if self.party then self:_addPartyHeader(controls) end
 
     local frame_pad = Size.padding.default
     local frame_extra = 2 * (frame_pad + Size.border.window)
@@ -356,6 +457,11 @@ end
 function ChessPuzzlesScreen:onCellTap(r, c)
     local g = self.game
     if g.state ~= "play" then return end
+    if self.party and not self.match.player then
+        -- Nobody on the move yet: a tap on the board is a claim.
+        if not self.match:isPuzzleOver() then self:_askWhoHasIt() end
+        return
+    end
     local b = g.board
     if g.wrong then
         g.wrong = nil
@@ -414,6 +520,7 @@ end
 function ChessPuzzlesScreen:_playerMove(fr, fc, tr, tc, promo)
     local g = self.game
     local result = g:tryMove(fr, fc, tr, tc, promo)
+    if self.party then return self:_partyMoveResult(result) end
     self.marks = nil
     local msg
     if result == "wrong" then
@@ -459,6 +566,12 @@ end
 function ChessPuzzlesScreen:onHint()
     local g = self.game
     if g.state == "reply" then return end
+    -- Multiplayer: a hint is for everyone, between attempts, and costs the
+    -- puzzle a point.
+    if self.party then
+        if self.match.player or self.match:isPuzzleOver() then return end
+        self.match:hint()
+    end
     if g:isShowingSolution() then
         self:updateStatus(_("Hide the solution to keep playing."))
         return
@@ -479,6 +592,12 @@ end
 function ChessPuzzlesScreen:onShowSolution()
     self:_cancelReply()
     local g = self.game
+    if self.party then
+        if self.match:isPuzzleOver() then return end
+        self.match:giveUp()
+        g:showSolution()
+        return self:_onPuzzleEnd()
+    end
     if not g:showSolution() then return end
     self:_settle(false)
     g.board.selected = nil
@@ -572,10 +691,12 @@ end
 -- ---------------------------------------------------------------------------
 
 function ChessPuzzlesScreen:isRoundOver()
+    if self.party then return self.match:isPuzzleOver() end
     return self.game:isOver()
 end
 
 function ChessPuzzlesScreen:getRoundOverButtons()
+    if self.party then return self:_partyRoundOverButtons() end
     local new_game = { text = _("New game"), callback = function() self:onNewGame() end }
     if self.game:isShowingSolution() then
         local back = { text = _("Step back"),    callback = function() self:onSolutionStep(-1) end }
@@ -600,7 +721,11 @@ function ChessPuzzlesScreen:updateStatus(msg)
     local g = self.game
     local p = g.puzzle
     local status
-    if msg then
+    if self.party then
+        status = msg or self:_partyStatus()
+        if self.header_widget then self.header_widget:setText(self:_headerText()) end
+        if self.scores_widget then self.scores_widget:setText(self:_scoresText()) end
+    elseif msg then
         status = msg
     elseif not p then
         status = ""
@@ -623,6 +748,408 @@ function ChessPuzzlesScreen:updateStatus(msg)
     end
     ScreenBase.updateStatus(self, status)
     self:refreshActionBar()
+end
+
+-- ---------------------------------------------------------------------------
+-- Mode: solo / multiplayer
+-- ---------------------------------------------------------------------------
+
+function ChessPuzzlesScreen:_modeLabel()
+    return T(_("Mode: %1"), self.party and _("Multiplayer") or _("Solo"))
+end
+
+-- Switching starts a multiplayer match; back to solo, the solo puzzle in
+-- progress comes back (its save is never touched by a match).
+function ChessPuzzlesScreen:_setMode(mode)
+    self:_cancelReply()
+    self:_stopCountdown()
+    self:_save()
+    self.plugin.launch_mode = mode
+    self.party = mode == "party"
+    self.user_flip = false
+    self.marks = nil
+    if self.party then
+        self:_newMatch()
+    else
+        self:_loadSolo()
+    end
+    self:buildLayout()
+    UIManager:setDirty(self, function() return "ui", self.dimen end)
+    self:_startCountdown()
+end
+
+-- ---------------------------------------------------------------------------
+-- Multiplayer match
+-- ---------------------------------------------------------------------------
+
+function ChessPuzzlesScreen:_teams()
+    -- Not "party_teams": party.lua keeps the team names under that key.
+    return self.plugin:getSetting("party_play_teams", false) and true or false
+end
+
+-- party.lua options: teams get their own labels and remembered names/count.
+function ChessPuzzlesScreen:_seatOpts()
+    return self:_teams() and { teams = true } or nil
+end
+
+function ChessPuzzlesScreen:_loadSeats()
+    local opts = self:_seatOpts()
+    return Party.loadPlayers(self.plugin, Party.loadCount(self.plugin, opts), opts)
+end
+
+function ChessPuzzlesScreen:_partyBand()
+    local b = self.plugin:getSetting("party_band", "easy")
+    return Puzzles.isBand(b) and b or "easy"
+end
+
+function ChessPuzzlesScreen:_partyOptions()
+    return {
+        rounds   = self.plugin:getSetting("party_rounds", 5),
+        duration = self.plugin:getSetting("party_duration", 120),
+        band     = self:_partyBand(),
+    }
+end
+
+function ChessPuzzlesScreen:_newMatch()
+    self.game = Game:new()
+    self.match = PartyMatch.new(self:_loadSeats(), self:_partyOptions())
+    self:_dealPuzzle()
+end
+
+-- The next puzzle of the match: from its band, never one already dealt in
+-- it. Nothing is marked seen: the solo progress stays as it was.
+function ChessPuzzlesScreen:_dealPuzzle()
+    local m = self.match
+    local band, index = Puzzles.pick{
+        band    = m.band,
+        is_seen = function(b, i) return b == m.band and m:wasUsed(i) end,
+    }
+    local p = band and Puzzles.get(band, index)
+    if not p then return false end
+    self:_cancelReply()
+    self.game:setPuzzle(p, nil, false)
+    m:startPuzzle(index, self.game:playerMoveCount())
+    self.user_flip = false
+    self.marks = nil
+    self:_saveParty()
+    return true
+end
+
+function ChessPuzzlesScreen:_loadParty()
+    self.game = Game:new()
+    local t = self.plugin:loadState(PARTY_KEY)
+    local m = type(t) == "table" and PartyMatch.restore(t.match)
+    local g = type(t) == "table" and type(t.game) == "table" and t.game
+    local p = m and g and Puzzles.isBand(g.band) and Puzzles.get(g.band, tonumber(g.index) or 0)
+    if p and self.game:load(g, p) then
+        self.match = m
+        -- An attempt cut short by closing the reader starts over.
+        if m.player and not self.game:isOver() and self.game:ply() > 1 then
+            self.game:setPuzzle(p, nil, false)
+        end
+    else
+        self:_newMatch()
+    end
+end
+
+function ChessPuzzlesScreen:_saveParty()
+    if not self.match then return end
+    self.plugin:saveState({ match = self.match:serialize(), game = self.game:serialize() }, PARTY_KEY)
+end
+
+function ChessPuzzlesScreen:_rebuild()
+    self:buildLayout()
+    UIManager:setDirty(self, function() return "ui", self.dimen end)
+end
+
+function ChessPuzzlesScreen:onNewMatch()
+    self:_stopCountdown()
+    self:_newMatch()
+    self:_rebuild()
+    self:_startCountdown()
+end
+
+function ChessPuzzlesScreen:onNextPuzzle()
+    local m = self.match
+    if not m:isPuzzleOver() or m:isLastRound() then return end
+    self:_dealPuzzle()
+    self:_rebuild()
+    self:_startCountdown()
+end
+
+-- "Who has it?": the players not out yet; picking one starts their attempt.
+function ChessPuzzlesScreen:_askWhoHasIt()
+    local m = self.match
+    if m.player or m:isPuzzleOver() then return end
+    local seats, names = m:remaining(), {}
+    for k, i in ipairs(seats) do names[k] = m.scores.names[i] end
+    Party.askWhoFound(names, {
+        title   = _("Who has it?"),
+        on_pick = function(k)
+            if k then self:onClaim(seats[k]) end
+        end,
+    })
+end
+
+function ChessPuzzlesScreen:onClaim(i)
+    if not self.match:claim(i) then return end
+    self:_stopCountdown()
+    self.game.board.selected = nil
+    self.marks = nil
+    self:_saveParty()
+    self:_rebuild()
+end
+
+function ChessPuzzlesScreen:_partyMoveResult(result)
+    local g, m = self.game, self.match
+    self.marks = nil
+    if result == "illegal" then return end
+    if result == "correct" then
+        self:_save()
+        self:_refreshBoard()
+        self:updateStatus(_("Correct! Keep going."))
+        self:_scheduleReply()
+        return
+    end
+    local name = m.scores.names[m.player]
+    if result == "solved" then
+        local pts = m:solved()
+        return self:_onPuzzleEnd(T(_("%1 solved it! +%2"), name, pts))
+    end
+    -- Wrong: out for this puzzle, the position back to the start.
+    local all_out = m:wrong()
+    g:setPuzzle(g.puzzle, nil, false)
+    if all_out then
+        g:showSolution()
+        return self:_onPuzzleEnd()
+    end
+    self:_saveParty()
+    self:_rebuild()
+    self:updateStatus(T(_("Wrong move: %1 is out."), name))
+    self:_startCountdown()
+end
+
+function ChessPuzzlesScreen:_onPuzzleEnd(msg)
+    self:_cancelReply()
+    self:_stopCountdown()
+    self.game.board.selected = nil
+    self.marks = nil
+    self:_saveParty()
+    self:_rebuild()
+    if msg then self:updateStatus(msg) end
+    self:_showScores()
+end
+
+function ChessPuzzlesScreen:_showScores()
+    local m = self.match
+    if m:isOver() then
+        Party.showScoreboard(m.scores, { final = true })
+    else
+        Party.showScoreboard(m.scores, { title = T(_("Puzzle %1/%2"), m:round(), m.rounds) })
+    end
+end
+
+function ChessPuzzlesScreen:_partyRoundOverButtons()
+    local m = self.match
+    local scores = { text = _("Scores"), callback = function() self:_showScores() end }
+    local next_btn = m:isLastRound()
+        and { text = _("New game"), callback = function() self:onNewMatch() end }
+        or  { text = _("Next puzzle"), callback = function() self:onNextPuzzle() end }
+    if self.game:isShowingSolution() then
+        return {
+            { { text = _("Step back"),    callback = function() self:onSolutionStep(-1) end },
+              { text = _("Step forward"), callback = function() self:onSolutionStep(1) end } },
+            { scores, next_btn },
+        }
+    end
+    return { scores, next_btn }
+end
+
+function ChessPuzzlesScreen:_partyStatus()
+    local g, m = self.game, self.match
+    if g:isShowingSolution() then
+        return T(_("Solution: move %1/%2"), g.sol_step, g:solutionLength())
+    end
+    if m.result == "solved" then
+        return T(_("%1 solved it! +%2"), m.scores.names[m.winner] or "", m.value)
+    end
+    local side = g.board.turn == "white" and _("White to move") or _("Black to move")
+    if m.player then
+        return self:joinStatus(T(_("%1 plays"), m.scores.names[m.player]), side)
+    end
+    local out = {}
+    for i, s in ipairs(m.scores.names) do
+        if m:isOut(i) then out[#out + 1] = s end
+    end
+    return self:joinStatus(side, T(_("Points: %1"), m.value),
+        #out > 0 and T(_("Out: %1"), table.concat(out, ", ")) or nil)
+end
+
+-- "Puzzle 2/5 · 1:42"; once over, how it ended in place of the clock.
+function ChessPuzzlesScreen:_headerText()
+    local m = self.match
+    local round = T(_("Puzzle %1/%2"), m:round(), m.rounds)
+    local ends = {
+        solved   = _("Solved!"),
+        all_out  = _("Everyone is out."),
+        time_up  = _("Time's up!"),
+        given_up = _("Solution"),
+    }
+    if m.result then return self:joinStatus(round, ends[m.result]) end
+    if not m:hasClock() then return round end
+    local t = m.time_left
+    return self:joinStatus(round, string.format("%d:%02d", math.floor(t / 60), t % 60))
+end
+
+-- "Alice 7 · Bob 14", a line only breaking between players; with `pad`,
+-- every total reads `pad` (to measure the widest it can get).
+function ChessPuzzlesScreen:_scoresText(pad)
+    local scores = self.match.scores
+    local parts = {}
+    for i, s in ipairs(scores.names) do
+        parts[i] = (s .. " " .. (pad or scores.points[i] or 0)):gsub(" ", "\u{00A0}")
+    end
+    return table.concat(parts, ScreenBase.STATUS_SEP)
+end
+
+-- Round and clock on a bold line, the scores under it, both above the
+-- status line; heights reserved for the longest text each can show, so
+-- nothing moves during the match.
+function ChessPuzzlesScreen:_addPartyHeader(controls)
+    local w = self:getControlsWidth()
+    local function reserved(texts, face, bold)
+        local h = 0
+        for _i, text in ipairs(texts) do
+            local tb = TextBoxWidget:new{ text = text, face = face, bold = bold,
+                width = w, alignment = "center" }
+            h = math.max(h, tb:getSize().h)
+            tb:free()
+        end
+        return h
+    end
+    local m = self.match
+    local round = T(_("Puzzle %1/%2"), m.rounds, m.rounds)
+    local header_face = Font:getFace("cfont", 24)
+    self.header_widget = TextBoxWidget:new{
+        text = self:_headerText(), face = header_face, bold = true,
+        width = w, alignment = "center",
+        height = reserved({
+            self:joinStatus(round, "00:00"),
+            self:joinStatus(round, _("Everyone is out.")),
+            self:joinStatus(round, _("Time's up!")),
+        }, header_face, true),
+    }
+    -- Its own frame: the countdown repaints this box only.
+    self.header_frame = FrameContainer:new{
+        padding = 0, margin = 0, bordersize = 0,
+        self.header_widget,
+    }
+    local face = Font:getFace("smallinfofont")
+    self.scores_widget = TextBoxWidget:new{
+        text = self:_scoresText(), face = face, bold = true,
+        width = w, alignment = "center",
+        height = reserved({ self:_scoresText("000") }, face, true),
+    }
+    table.insert(controls, 1, self.header_frame)
+    table.insert(controls, 2, self.scores_widget)
+    table.insert(controls, 3, VerticalSpan:new{ width = Size.span.vertical_default })
+end
+
+function ChessPuzzlesScreen:_partyMenuItems()
+    local plugin, m = self.plugin, self.match
+    local opts = self:_partyOptions()
+    local items = {
+        { text = _("New game"), callback = function() self:onNewMatch() end },
+        { text = T(self:_teams() and _("Teams: %1") or _("Players: %1"), #m.scores.names), callback = function()
+            Party.pickCount(plugin, function() self:onNewMatch() end, self, self:_seatOpts())
+        end },
+        { text = self:_teams() and _("Team names") or _("Player names"), callback = function()
+            Party.editPlayers(plugin, m.scores.names, function()
+                self:_saveParty()
+                self:updateStatus()
+            end, self, self:_seatOpts())
+        end },
+        { text = T(_("Play as: %1"), self:_teams() and _("Teams") or _("Players")), callback = function()
+            plugin:saveSetting("party_play_teams", not self:_teams())
+            self:onNewMatch()
+        end },
+        { text = T(_("Difficulty: %1"), BAND_LABELS[opts.band]), callback = function()
+            local list = {}
+            for _i, id in ipairs(Puzzles.BANDS) do
+                list[#list + 1] = { id = id, text = self:joinStatus(BAND_LABELS[id], BAND_RANGES[id]) }
+            end
+            self:_pickSetting(_("Difficulty"), "party_band", opts.band, list)
+        end },
+        { text = T(_("Puzzles: %1"), opts.rounds), callback = function()
+            local list = {}
+            for _i, n in ipairs(PartyMatch.ROUNDS) do list[#list + 1] = { id = n, text = tostring(n) } end
+            self:_pickSetting(_("Puzzles"), "party_rounds", opts.rounds, list)
+        end },
+        { text = T(_("Time: %1"), self:_durationLabel(opts.duration)), callback = function()
+            local list = {}
+            for _i, d in ipairs(PartyMatch.DURATIONS) do list[#list + 1] = { id = d, text = self:_durationLabel(d) } end
+            self:_pickSetting(_("Time"), "party_duration", opts.duration, list)
+        end },
+        { text = self:_modeLabel(), callback = function() self:_setMode("solo") end },
+    }
+    if not m:isPuzzleOver() then
+        items[#items + 1] = { text = _("Show solution"), callback = function() self:onShowSolution() end }
+    end
+    items[#items + 1] = { text = _("Flip board"), callback = function() self:onFlipBoard() end }
+    items[#items + 1] = self:makeModeRulesButtonConfig(MODE_RULES)
+    return items
+end
+
+-- A match setting: saved, then a new match starts with it.
+function ChessPuzzlesScreen:_pickSetting(title, key, current, items)
+    MenuHelper.openPickerMenu{
+        title      = title,
+        items      = items,
+        current_id = current,
+        parent     = self,
+        on_select  = function(v)
+            self.plugin:saveSetting(key, v)
+            self:onNewMatch()
+        end,
+    }
+end
+
+function ChessPuzzlesScreen:_durationLabel(secs)
+    if not secs or secs <= 0 then return _("No limit") end
+    if secs < 60 then return T(_("%1 s"), secs) end
+    return T(_("%1 min"), math.floor(secs / 60))
+end
+
+-- ---------------------------------------------------------------------------
+-- Countdown: one tick a second, repainting the header box only. It does not
+-- run during an attempt.
+-- ---------------------------------------------------------------------------
+
+function ChessPuzzlesScreen:_startCountdown()
+    self:_stopCountdown()
+    local m = self.match
+    if not (self.party and m and m:hasClock()) or m:isPuzzleOver() or m.player then return end
+    local gen = self._tick_gen
+    UIManager:scheduleIn(1, function() self:_onTick(gen) end)
+end
+
+function ChessPuzzlesScreen:_stopCountdown()
+    -- Any pending tick sees a newer generation and does nothing.
+    self._tick_gen = (self._tick_gen or 0) + 1
+end
+
+function ChessPuzzlesScreen:_onTick(gen)
+    if gen ~= self._tick_gen or not self.party then return end
+    if self.match:tick() then
+        self.game:showSolution()
+        return self:_onPuzzleEnd()
+    end
+    if self.header_widget then
+        self.header_widget:setText(self:_headerText())
+        local frame = self.header_frame
+        UIManager:setDirty(self, function() return "fast", frame.dimen end)
+    end
+    UIManager:scheduleIn(1, function() self:_onTick(gen) end)
 end
 
 return ChessPuzzlesScreen

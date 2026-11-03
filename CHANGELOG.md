@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-11-02
+
+### Added
+- Multiplayer mode ("Chess Puzzles · multiplayer" under Tools → Games →
+  Party & quiz, or Mode: Multiplayer in the menu), for 2 to 8 players or
+  teams around one board. Each puzzle has a clock (1–5 minutes or none);
+  whoever has it taps "I have it!", picks their name and plays the moves.
+  The whole solution wins the puzzle's points (Beginner 1 … Expert 5, +1 per
+  extra move to find, −1 per hint); a wrong move puts that player out for
+  the puzzle and the others may try. Matches of 3, 5 or 10 puzzles from one
+  difficulty, scores after each and a final winner. Multiplayer never
+  changes the solo rating, statistics or seen puzzles; the match is saved
+  apart from the solo puzzle. Separate multiplayer rules. Needs game-common
+  with party.lua.
+
 ## [1.0.1] - 2026-11-02
 
 ### Changed
