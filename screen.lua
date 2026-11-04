@@ -207,6 +207,12 @@ function ChessPuzzlesScreen:closeScreen()
     ScreenBase.closeScreen(self)
 end
 
+-- The puzzle banks are only needed while the game is open: drop them when the
+-- screen closes (the next game reads the bands it needs again).
+function ChessPuzzlesScreen:onCloseWidget()
+    Puzzles.release()
+end
+
 -- ---------------------------------------------------------------------------
 -- Settings, progress and rating
 -- ---------------------------------------------------------------------------

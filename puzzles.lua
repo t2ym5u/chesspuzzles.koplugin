@@ -8,7 +8,7 @@
 --     <id> <board> <side> <castling> <ep> <uci,uci,...> <rating> <themes>
 --
 -- A band is read the first time it is needed and kept as raw lines plus a
--- rating array (~170 KB of text per band); a line is only split into a
+-- rating array (~170 KB of text per band) until the game screen closes; a line is only split into a
 -- puzzle table when that puzzle is played.
 -- ---------------------------------------------------------------------------
 
@@ -64,9 +64,19 @@ local function loadBand(band)
     return b
 end
 
--- Forget the loaded bands (tests, low memory).
+-- Forget the loaded bands: called when the game screen closes (all five
+-- bands read again in ~15 ms on desktop), and by the tests.
 function Puzzles.unload()
     bank = {}
+end
+Puzzles.release = Puzzles.unload
+
+-- The bands loaded now (for the specs).
+function Puzzles.loadedBands()
+    local out = {}
+    for band in pairs(bank) do out[#out + 1] = band end
+    table.sort(out)
+    return out
 end
 
 function Puzzles.count(band)
