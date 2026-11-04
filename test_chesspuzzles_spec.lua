@@ -179,6 +179,22 @@ describe("shipped puzzles", function()
         end
         Puzzles.unload()
     end)
+
+    it("loads a band only when needed, and release() drops them", function()
+        local P = load("puzzles")
+        P.data_dir = DIR
+        assert.are.same({}, P.loadedBands())
+        assert.is_true(P.isBand("hard"))
+        assert.are.same({}, P.loadedBands())
+        local p = P.get("easy", 1)
+        assert.is_truthy(p)
+        assert.are.same({ "easy" }, P.loadedBands())
+        P.release()
+        assert.are.same({}, P.loadedBands())
+        -- Reloaded, the same puzzle comes back.
+        assert.are.same(p, P.get("easy", 1))
+        P.release()
+    end)
 end)
 
 describe("game", function()
