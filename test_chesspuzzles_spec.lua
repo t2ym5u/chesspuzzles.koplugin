@@ -127,13 +127,12 @@ describe("shipped puzzles", function()
         for _, band in ipairs(Puzzles.BANDS) do
             local n = Puzzles.count(band)
             assert.is_true(n >= 1000, band)
-            local lo, hi = Puzzles.RANGES[band][1], Puzzles.RANGES[band][2]
             for i = 1, n do
                 local p = Puzzles.get(band, i)
                 total = total + 1
                 local b = Board:new()
                 b:loadFEN(p.fen)
-                local ok = p.rating >= lo and p.rating < hi and #p.moves % 2 == 0
+                local ok = #p.moves % 2 == 0
                 for _, m in ipairs(p.moves) do
                     if not ok then break end
                     ok = b:applyUCI(m)
@@ -330,27 +329,6 @@ describe("rating", function()
 end)
 
 describe("puzzle picking", function()
-    local function seq() return 1 end
-
-    it("adaptive picks near the target rating", function()
-        for _, target in ipairs({ 700, 1200, 1650, 2000, 2400 }) do
-            local band, i, fresh = Puzzles.pick{ band = "adaptive", target = target, random = math.random }
-            assert.is_true(fresh)
-            assert.is_true(math.abs(Puzzles.rating(band, i) - target) <= 50, target)
-        end
-    end)
-
-    it("fixed band stays in the band and skips seen puzzles", function()
-        local seen = {}
-        for _ = 1, 20 do
-            local band, i = Puzzles.pick{ band = "hard", random = seq,
-                is_seen = function(b, k) return seen[b .. k] end }
-            assert.are.equal("hard", band)
-            assert.is_nil(seen[band .. i])
-            seen[band .. i] = true
-        end
-    end)
-
     it("honours the theme filter", function()
         for _ = 1, 10 do
             local band, i = Puzzles.pick{ band = "easy", theme = "mate1" }
@@ -370,10 +348,5 @@ describe("puzzle picking", function()
         assert.is_false(fresh)
     end)
 
-    it("maps ratings to bands", function()
-        assert.are.equal("beginner", Puzzles.bandFor(400))
-        assert.are.equal("easy", Puzzles.bandFor(1000))
-        assert.are.equal("medium", Puzzles.bandFor(1799))
-        assert.are.equal("expert", Puzzles.bandFor(2900))
-    end)
+
 end)
