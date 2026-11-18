@@ -453,7 +453,7 @@ end
 
 function ChessPuzzlesScreen:_refreshBoard()
     self:_syncWidget()
-    if self.board_widget then self.board_widget:refresh() end
+    if self.board_widget then self.board_widget:refresh(self) end
 end
 
 -- ---------------------------------------------------------------------------
