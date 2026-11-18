@@ -35,6 +35,7 @@ Puzzles.THEME_CODE = {
 }
 
 local bank = {}
+local lessons   -- lessons.lua, read the first time a lesson is asked for
 
 -- Test hook: read the bands from another directory.
 Puzzles.data_dir = _dir
@@ -68,6 +69,7 @@ end
 -- bands read again in ~15 ms on desktop), and by the tests.
 function Puzzles.unload()
     bank = {}
+    lessons = nil
 end
 Puzzles.release = Puzzles.unload
 
@@ -228,6 +230,48 @@ function Puzzles.pick(opts)
     band, index = pick(opts, false)
     if band then return band, index, false end
     return nil
+end
+
+-- ---------------------------------------------------------------------------
+-- Lessons (lessons.lua): guided positions with a title, an objective and a
+-- hint, played in order. Not rated.
+-- ---------------------------------------------------------------------------
+
+Puzzles.LESSON_CATS = { "mate1", "mate2", "mate3", "tactics", "endgame", "opening" }
+
+local function lessonList()
+    if not lessons then
+        local chunk = loadfile(Puzzles.data_dir .. "lessons.lua")
+        local ok, t = pcall(chunk or error)
+        lessons = ok and type(t) == "table" and t or {}
+    end
+    return lessons
+end
+
+function Puzzles.lessonCount()
+    return #lessonList()
+end
+
+-- Lesson `index` as a puzzle table (band "lessons"); `lesson` holds its
+-- texts and category.
+function Puzzles.getLesson(index)
+    local l = lessonList()[index]
+    if not l then return nil end
+    local list = {}
+    for m in l.moves:gmatch("[^,]+") do list[#list + 1] = m end
+    return {
+        id = "L" .. l.id, band = "lessons", index = index,
+        fen = l.fen, moves = list, themes = "", lesson = l,
+    }
+end
+
+-- The lessons of category `cat`: their indexes, in order.
+function Puzzles.lessonsIn(cat)
+    local out = {}
+    for i, l in ipairs(lessonList()) do
+        if l.cat == cat then out[#out + 1] = i end
+    end
+    return out
 end
 
 return Puzzles

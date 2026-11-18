@@ -56,6 +56,21 @@ function ChessPuzzles:createScreen()
     return lazyrequire("screen"):new{ plugin = self }
 end
 
+-- Another plugin's settings (settings/<id>.lua), or nil when the file does
+-- not exist. Only read, never modified: the lessons start where Chess Course,
+-- now part of this game, was left.
+function ChessPuzzles:readOtherSettings(id)
+    local ok, lfs = pcall(require, "libs/libkoreader-lfs")
+    if not ok then ok, lfs = pcall(require, "lfs") end
+    local ok_ds, DataStorage = pcall(require, "datastorage")
+    if not ok or not ok_ds then return nil end
+    local path = DataStorage:getSettingsDir() .. "/" .. id .. ".lua"
+    if lfs.attributes(path, "mode") ~= "file" then return nil end
+    local LuaSettings = require("luasettings")
+    local ok2, s = pcall(LuaSettings.open, LuaSettings, path)
+    return ok2 and s and s.data or nil
+end
+
 guard.leave()
 
 return ChessPuzzles

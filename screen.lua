@@ -46,6 +46,8 @@ Rating: you start at 1200. A puzzle solved without a wrong move, a hint or the s
 
 Difficulty: Adaptive picks puzzles near your rating; Beginner (under 1000), Easy (1000–1399), Medium (1400–1799), Hard (1800–2199) and Expert (2200 and up) stay in one range. Theme narrows the choice (mates in 1, 2 or 3+, forks, pins, endgames…). Puzzles you have played are not offered again until you have seen them all. The Daily Challenge is the same puzzle for everyone today.
 
+Lessons (title-bar menu): 58 guided positions in six groups — mates in 1, 2 and 3, tactics, endgames and openings — each with its objective and a hint. You play the side to move from the start, the opponent answers, and Next lesson moves on. Lessons are not rated.
+
 Puzzles from the Lichess puzzle database (lichess.org), CC0 public domain: 10,000 well-established puzzles, rated by Lichess players.
 ]]
 
@@ -63,6 +65,8 @@ Trouvez le meilleur coup. Chaque problème vient d'une vraie partie : l'échiqui
 Classement : vous partez de 1200. Un problème résolu sans faute, sans astuce et sans la solution fait gagner des points ; sinon il en fait perdre — plus ou moins selon le classement du problème. Seule la première partie d'un problème compte. La série compte les problèmes résolus sans faute d'affilée.
 
 Difficulté : Adaptatif choisit des problèmes proches de votre classement ; Débutant (moins de 1000), Facile (1000–1399), Moyen (1400–1799), Difficile (1800–2199) et Expert (2200 et plus) restent dans une tranche. Le thème restreint le choix (mats en 1, 2 ou 3+, fourchettes, clouages, finales…). Les problèmes déjà joués ne reviennent pas avant que vous les ayez tous vus. Le Défi du jour est le même problème pour tout le monde aujourd'hui.
+
+Leçons (menu de la barre de titre) : 58 positions guidées en six groupes — mats en 1, 2 et 3, tactique, finales et ouvertures —, chacune avec son objectif et un indice. Vous jouez le camp au trait dès le départ, l'adversaire répond, et Leçon suivante passe à la suite. Les leçons ne comptent pas pour le classement.
 
 Problèmes issus de la base de problèmes de Lichess (lichess.org), domaine public CC0 : 10 000 problèmes bien établis, classés par les joueurs de Lichess.
 ]]
@@ -161,6 +165,15 @@ local THEME_LABELS = {
     promotion  = _("Promotion"),
 }
 
+local LESSON_CAT_LABELS = {
+    mate1   = _("Mate in 1"),
+    mate2   = _("Mate in 2"),
+    mate3   = _("Mate in 3"),
+    tactics = _("Tactics"),
+    endgame = _("Endgame"),
+    opening = _("Opening"),
+}
+
 local REPLY_DELAY = 0.6
 
 local ChessPuzzlesScreen = ScreenBase:extend{}
@@ -181,8 +194,12 @@ function ChessPuzzlesScreen:_loadSolo()
     self.game = Game:new()
     self.match = nil
     local saved = self.plugin:loadState()
-    local p = type(saved) == "table" and Puzzles.isBand(saved.band)
-        and Puzzles.get(saved.band, tonumber(saved.index) or 0)
+    local p
+    if type(saved) == "table" and saved.band == "lessons" then
+        p = Puzzles.getLesson(tonumber(saved.index) or 0)
+    elseif type(saved) == "table" and Puzzles.isBand(saved.band) then
+        p = Puzzles.get(saved.band, tonumber(saved.index) or 0)
+    end
     if not (p and self.game:load(saved, p)) then
         self:_newPuzzle()
     end
@@ -354,6 +371,116 @@ function ChessPuzzlesScreen:onDailyGame()
 end
 
 -- ---------------------------------------------------------------------------
+-- Lessons
+-- ---------------------------------------------------------------------------
+
+-- A lesson text in the game's language: French, or the English twin.
+function ChessPuzzlesScreen:lessonText(lesson, field)
+    if not lesson then return nil end
+    if self.plugin:getLang({ "fr", "en" }) ~= "fr" then
+        return lesson[field .. "_en"] or lesson[field]
+    end
+    return lesson[field]
+end
+
+-- Lessons done: one character per lesson, "1" once solved.
+function ChessPuzzlesScreen:isLessonDone(index)
+    local s = self.plugin:getSetting("lessons_done", "")
+    return type(s) == "string" and s:sub(index, index) == "1"
+end
+
+function ChessPuzzlesScreen:lessonsDoneCount()
+    local s = self.plugin:getSetting("lessons_done", "")
+    local _s, n = (type(s) == "string" and s or ""):gsub("1", "")
+    return n
+end
+
+function ChessPuzzlesScreen:_markLessonDone(index)
+    local s = self.plugin:getSetting("lessons_done", "")
+    if type(s) ~= "string" then s = "" end
+    if #s < index then s = s .. string.rep("0", index - #s) end
+    self.plugin:saveSetting("lessons_done", s:sub(1, index - 1) .. "1" .. s:sub(index + 1))
+end
+
+-- The lesson to open first: the last one played, else the one Chess Course
+-- (now part of this game) was on, else the first.
+function ChessPuzzlesScreen:lastLesson()
+    local i = tonumber(self.plugin:getSetting("lesson", nil))
+    if not i then
+        local course = self.plugin.readOtherSettings and self.plugin:readOtherSettings("chesscourse")
+        local state = type(course) == "table" and course.state
+        i = type(state) == "table" and tonumber(state.lesson_idx) or 1
+    end
+    return math.max(1, math.min(i, Puzzles.lessonCount()))
+end
+
+function ChessPuzzlesScreen:_startLesson(index)
+    local p = Puzzles.getLesson(index)
+    if not p then return false end
+    self:_cancelReply()
+    self.game:setPuzzle(p, nil, false)
+    self.user_flip = false
+    self.marks = nil
+    self.plugin:saveSetting("lesson", index)
+    self:_save()
+    return true
+end
+
+-- Open lesson `index`, its objective in the status line.
+function ChessPuzzlesScreen:openLesson(index)
+    if not self:_startLesson(index) then return end
+    self:buildLayout()
+    self:updateStatus(self:lessonText(self.game.puzzle.lesson, "desc"))
+    UIManager:setDirty(self, function() return "ui", self.dimen end)
+end
+
+function ChessPuzzlesScreen:onNextLesson()
+    local p = self.game.puzzle
+    local index = p and p.lesson and p.index or 0
+    if index < Puzzles.lessonCount() then self:openLesson(index + 1) end
+end
+
+function ChessPuzzlesScreen:openLessonsMenu()
+    local items = {}
+    for _i, cat in ipairs(Puzzles.LESSON_CATS) do
+        local list, done = Puzzles.lessonsIn(cat), 0
+        for _j, i in ipairs(list) do
+            if self:isLessonDone(i) then done = done + 1 end
+        end
+        items[#items + 1] = { id = cat, text = T("%1 (%2/%3)", LESSON_CAT_LABELS[cat], done, #list) }
+    end
+    local p = self.game.puzzle
+    local current = p and p.lesson or (Puzzles.getLesson(self:lastLesson()) or {}).lesson
+    MenuHelper.openPickerMenu{
+        title      = _("Lessons"),
+        items      = items,
+        current_id = current and current.cat,
+        parent     = self,
+        on_select  = function(cat) self:openLessonList(cat) end,
+    }
+end
+
+function ChessPuzzlesScreen:openLessonList(cat)
+    local items = {}
+    for _i, i in ipairs(Puzzles.lessonsIn(cat)) do
+        local l = Puzzles.getLesson(i).lesson
+        items[#items + 1] = {
+            id   = i,
+            text = T("%1. %2", i, self:lessonText(l, "title"))
+                .. (self:isLessonDone(i) and "  ✓" or ""),
+        }
+    end
+    local p = self.game.puzzle
+    MenuHelper.openPickerMenu{
+        title      = LESSON_CAT_LABELS[cat],
+        items      = items,
+        current_id = p and p.lesson and p.index or self:lastLesson(),
+        parent     = self,
+        on_select  = function(i) self:openLesson(i) end,
+    }
+end
+
+-- ---------------------------------------------------------------------------
 -- Layout
 -- ---------------------------------------------------------------------------
 
@@ -373,6 +500,7 @@ function ChessPuzzlesScreen:buildLayout()
               callback = function() self:openDifficultyMenu() end },
             { text = T(_("Theme: %1"), THEME_LABELS[self:_getTheme()]),
               callback = function() self:openThemeMenu() end },
+            { text = _("Lessons"), callback = function() self:openLessonsMenu() end },
         }
         if not self.game:isOver() then
             items[#items + 1] = { text = _("Show solution"), callback = function() self:onShowSolution() end }
@@ -537,6 +665,7 @@ function ChessPuzzlesScreen:_playerMove(fr, fc, tr, tc, promo)
         self:_scheduleReply()
     elseif result == "solved" then
         self:_settle(not g.failed)
+        if g.puzzle.lesson then self:_markLessonDone(g.puzzle.index) end
     end
     self:_save()
     self:_refreshBoard()
@@ -562,7 +691,9 @@ function ChessPuzzlesScreen:_cancelReply()
 end
 
 function ChessPuzzlesScreen:_playReply()
-    if self.game:playReply() then
+    local g = self.game
+    if g:playReply() then
+        if g:isSolved() and g.puzzle.lesson then self:_markLessonDone(g.puzzle.index) end
         self:_save()
         self:_refreshBoard()
         self:updateStatus()
@@ -590,6 +721,15 @@ function ChessPuzzlesScreen:onHint()
     if level == 2 then self.marks[2] = { tr, tc } end
     self:_save()
     self:_refreshBoard()
+    local lesson_hint = level == 1 and self:lessonText(g.puzzle.lesson, "hint")
+    if lesson_hint then
+        -- The status line holds one line, which cuts most hints short:
+        -- the whole hint goes in a popup too.
+        local text = T(_("Hint: %1"), lesson_hint)
+        UIManager:show(InfoMessage:new{ text = text })
+        self:updateStatus(text)
+        return
+    end
     self:updateStatus(level == 1
         and _("Move the marked piece.")
         or  _("Move it to the marked square."))
@@ -685,6 +825,7 @@ function ChessPuzzlesScreen:statisticsText()
         lines[#lines + 1] = BAND_LABELS[id] .. " · "
             .. T(_("Seen: %1/%2"), self:seenCount(id), Puzzles.count(id))
     end
+    lines[#lines + 1] = T(_("Lessons done: %1/%2"), self:lessonsDoneCount(), Puzzles.lessonCount())
     return table.concat(lines, "\n")
 end
 
@@ -704,6 +845,10 @@ end
 function ChessPuzzlesScreen:getRoundOverButtons()
     if self.party then return self:_partyRoundOverButtons() end
     local new_game = { text = _("New game"), callback = function() self:onNewGame() end }
+    local p = self.game.puzzle
+    if p and p.lesson and p.index < Puzzles.lessonCount() then
+        new_game = { text = _("Next lesson"), callback = function() self:onNextLesson() end }
+    end
     if self.game:isShowingSolution() then
         local back = { text = _("Step back"),    callback = function() self:onSolutionStep(-1) end }
         local fwd  = { text = _("Step forward"), callback = function() self:onSolutionStep(1) end }
@@ -735,6 +880,16 @@ function ChessPuzzlesScreen:updateStatus(msg)
         status = msg
     elseif not p then
         status = ""
+    elseif p.lesson then
+        local where = T(_("Lesson %1/%2"), p.index, Puzzles.lessonCount())
+        if g:isShowingSolution() then
+            status = self:joinStatus(T(_("Solution: move %1/%2"), g.sol_step, g:solutionLength()), where)
+        elseif g:isSolved() then
+            status = self:joinStatus(_("Solved!"), where)
+        else
+            local side = g.board.turn == "white" and _("White to move") or _("Black to move")
+            status = self:joinStatus(where, LESSON_CAT_LABELS[p.lesson.cat], side)
+        end
     elseif g:isShowingSolution() then
         status = self:joinStatus(T(_("Solution: move %1/%2"), g.sol_step, g:solutionLength()),
             T(_("Puzzle: %1"), p.rating))

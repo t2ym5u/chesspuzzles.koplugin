@@ -2,7 +2,7 @@
 
 **Chess Puzzles** (FR « Problèmes d'échecs ») — rated chess tactics for
 [KOReader](https://github.com/koreader/koreader): find the winning move in
-positions taken from real games.
+positions taken from real games, and 58 guided lessons.
 
 ## Screenshot
 
@@ -40,6 +40,22 @@ positions taken from real games.
 - Promotion choice, board flip, **Daily Challenge** (the same puzzle for
   everyone today) and auto-save of the puzzle in progress.
 
+## Lessons
+
+**58 guided lessons** (*Lessons* in the title-bar menu), moved here from
+Chess Course: mates in 1, 2 and 3, tactics (forks, pins, skewers,
+discovered attacks), endgames and openings. Each one has a title, an
+objective and a hint, in French or English (the game's language).
+
+- You play the side to move from the start; the opponent answers each right
+  move. Any move that checkmates is accepted.
+- The *Hint* button shows the lesson's hint and marks the piece to move.
+- **Next lesson** moves on once a lesson is solved; the *Lessons* menu shows
+  how many are done in each group (✓ on each lesson done).
+- Lessons are not rated and do not count in the statistics, apart from the
+  number done.
+- The first time, the lessons open where Chess Course was left.
+
 ## Multiplayer
 
 **Chess Puzzles · multiplayer** (Tools → Games → Party & quiz, or *Mode:
@@ -66,7 +82,7 @@ solve puzzles on one board laid on the table.
 |--------|-----|
 | Move a piece | Tap it (dots mark its legal moves), then tap the target square |
 | Hint / Show solution | Buttons under the board |
-| New game, Daily Challenge, difficulty, theme, flip, statistics, rules | Title-bar menu |
+| New game, Daily Challenge, difficulty, theme, lessons, flip, statistics, rules | Title-bar menu |
 
 ## Puzzle data and credit
 

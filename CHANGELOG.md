@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-11-18
+
+### Added
+- **Lessons**: the 58 guided lessons of Chess Course (now retired) are part
+  of Chess Puzzles — mates in 1, 2 and 3, tactics, endgames and openings,
+  each with its objective and hint, in French or English. Open them from
+  *Lessons* in the title-bar menu; *Next lesson* moves on, and the menu
+  shows the lessons done. Any checkmate is accepted, and lessons are not
+  rated. The first time, they open where Chess Course was left.
+
 ## [1.1.6] - 2026-11-18
 
 ### Changed

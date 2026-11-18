@@ -5,6 +5,8 @@
 -- moves[1] is that move, played automatically; the player then has to find
 -- moves[2], the game answers moves[3], and so on. At any step, a move that
 -- checkmates is accepted as well, even when it is not the listed one.
+-- A lesson (p.lesson) has no such opening move: the player starts, from the
+-- side to move in the FEN.
 --
 -- States: "play" (player to find the next move), "reply" (the player's move
 -- was right, the opponent's answer is about to be played), "solved",
@@ -46,6 +48,12 @@ function Game:setPuzzle(p, daily, ratable)
     self.sol_step = 0
     self.sol_base = 0
     self.board:loadFEN(p.fen)
+    -- Moves played before the player's first one.
+    self.setup    = p.lesson and 0 or 1
+    if self.setup == 0 then
+        self.player = self.board.turn
+        return
+    end
     self.player   = self.board.turn == "white" and "black" or "white"
     -- The opponent's move that sets the puzzle.
     self:_push(p.moves[1])
@@ -81,12 +89,12 @@ end
 
 -- Number of moves the player has to find in the whole puzzle.
 function Game:playerMoveCount()
-    return math.floor(#self.puzzle.moves / 2)
+    return math.floor((#self.puzzle.moves - self.setup + 1) / 2)
 end
 
 -- Index (1-based) of the player move being looked for now.
 function Game:playerMoveIndex()
-    return math.floor(#self.played / 2) + 1
+    return math.floor((#self.played - self.setup) / 2) + 1
 end
 
 function Game:needsPromotion(fr, fc, tr, tc)
@@ -216,8 +224,8 @@ function Game:load(t, p)
     self:setPuzzle(p, t.daily, t.ratable)
     local moves = {}
     for m in tostring(t.played or ""):gmatch("[^,]+") do moves[#moves + 1] = m end
-    if moves[1] ~= p.moves[1] then return false end
-    for i = 2, #moves do
+    if self.setup == 1 and moves[1] ~= p.moves[1] then return false end
+    for i = self.setup + 1, #moves do
         if not self:_push(moves[i]) then return false end
     end
     self.failed  = t.failed and true or false

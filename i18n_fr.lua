@@ -1,6 +1,6 @@
 return {
     ["Chess Puzzles"] = { fr = "Problèmes d'échecs", es = "Problemas de ajedrez", de = "Schachaufgaben" },
-    ["Rated chess tactics: find the winning move in 10,000 puzzles from real games (Lichess database, CC0). Adaptive difficulty that follows your rating, themes, hints and a Daily Challenge."] = { fr = "Tactique d'échecs classée : trouvez le coup gagnant dans 10 000 problèmes issus de vraies parties (base Lichess, CC0). Difficulté adaptative qui suit votre classement, thèmes, astuces et Défi du jour.", es = "Táctica de ajedrez con clasificación: encuentra la jugada ganadora en 10 000 problemas de partidas reales (base de Lichess, CC0). Dificultad adaptativa que sigue tu clasificación, temas, pistas y Desafío diario.", de = "Schachtaktik mit Wertung: Finde den Gewinnzug in 10.000 Aufgaben aus echten Partien (Lichess-Datenbank, CC0). Adaptive Schwierigkeit nach deiner Wertung, Themen, Tipps und Tägliche Herausforderung." },
+    ["Rated chess tactics: find the winning move in 10,000 puzzles from real games (Lichess database, CC0), and 58 guided lessons. Adaptive difficulty that follows your rating, themes, hints and a Daily Challenge."] = { fr = "Tactique d'échecs classée : trouvez le coup gagnant dans 10 000 problèmes issus de vraies parties (base Lichess, CC0), et 58 leçons guidées. Difficulté adaptative qui suit votre classement, thèmes, astuces et Défi du jour.", es = "Táctica de ajedrez con clasificación: encuentra la jugada ganadora en 10 000 problemas de partidas reales (base de Lichess, CC0), y 58 lecciones guiadas. Dificultad adaptativa que sigue tu clasificación, temas, pistas y Desafío diario.", de = "Schachtaktik mit Wertung: Finde den Gewinnzug in 10.000 Aufgaben aus echten Partien (Lichess-Datenbank, CC0), dazu 58 geführte Lektionen. Adaptive Schwierigkeit nach deiner Wertung, Themen, Tipps und Tägliche Herausforderung." },
     ["Adaptive"]           = { fr = "Adaptatif", es = "Adaptativo", de = "Adaptiv" },
     ["All themes"]         = { fr = "Tous les thèmes", es = "Todos los temas", de = "Alle Themen" },
     ["Mate in 3+"]         = { fr = "Mat en 3 et plus", es = "Mate en 3 o más", de = "Matt in 3+" },
@@ -70,4 +70,14 @@ return {
     ["%1 s"]         = { fr = "%1 s", es = "%1 s", de = "%1 s" },
     ["%1 min"]       = { fr = "%1 min", es = "%1 min", de = "%1 Min" },
     ["Time's up!"]   = { fr = "Temps écoulé !", es = "¡Se acabó el tiempo!", de = "Zeit abgelaufen!" },
+    -- Lessons (moved here from Chess Course)
+    ["Lessons"]             = { fr = "Leçons", es = "Lecciones", de = "Lektionen" },
+    ["Lesson %1/%2"]        = { fr = "Leçon %1/%2", es = "Lección %1/%2", de = "Lektion %1/%2" },
+    ["Next lesson"]         = { fr = "Leçon suivante", es = "Lección siguiente", de = "Nächste Lektion" },
+    ["Lessons done: %1/%2"] = { fr = "Leçons terminées : %1/%2", es = "Lecciones terminadas: %1/%2", de = "Abgeschlossene Lektionen: %1/%2" },
+    ["Hint: %1"]            = { fr = "Indice : %1", es = "Pista: %1", de = "Hinweis: %1" },
+    ["Mate in 3"]           = { fr = "Mat en 3", es = "Mate en 3", de = "Matt in 3" },
+    ["Tactics"]             = { fr = "Tactique", es = "Táctica", de = "Taktik" },
+    ["Endgame"]             = { fr = "Finale", es = "Final", de = "Endspiel" },
+    ["Opening"]             = { fr = "Ouverture", es = "Apertura", de = "Eröffnung" },
 }
