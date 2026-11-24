@@ -676,11 +676,11 @@ end
 -- move land first (one repaint each; no animation).
 function ChessPuzzlesScreen:_scheduleReply()
     self:_cancelReply()
-    self._reply_fn = function()
+    -- :schedule returns the function it scheduled: _cancelReply unschedules it.
+    self._reply_fn = self:schedule(REPLY_DELAY, function()
         self._reply_fn = nil
         self:_playReply()
-    end
-    UIManager:scheduleIn(REPLY_DELAY, self._reply_fn)
+    end)
 end
 
 function ChessPuzzlesScreen:_cancelReply()
@@ -1291,7 +1291,7 @@ function ChessPuzzlesScreen:_startCountdown()
     local m = self.match
     if not (self.party and m and m:hasClock()) or m:isPuzzleOver() or m.player then return end
     local gen = self._tick_gen
-    UIManager:scheduleIn(1, function() self:_onTick(gen) end)
+    self:schedule(1, function() self:_onTick(gen) end)
 end
 
 function ChessPuzzlesScreen:_stopCountdown()
@@ -1310,7 +1310,7 @@ function ChessPuzzlesScreen:_onTick(gen)
         local frame = self.header_frame
         UIManager:setDirty(self, function() return "fast", frame.dimen end)
     end
-    UIManager:scheduleIn(1, function() self:_onTick(gen) end)
+    self:schedule(1, function() self:_onTick(gen) end)
 end
 
 return ChessPuzzlesScreen
